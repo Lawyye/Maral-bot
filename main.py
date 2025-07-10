@@ -74,33 +74,23 @@ async def send_welcome(message: types.Message, state: FSMContext):
 @dp.message_handler(lambda msg: msg.text == "📝 Өтінім қалдыру")
 async def start_request(message: types.Message):
     """Запускает процесс оформления заявки через FSM."""
-    kb = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    kb.add(KeyboardButton("📲 Нөмірімді жіберу", request_contact=True))
-    kb.add(KeyboardButton("✍️ Өзім жазамын"))
-    
-    await message.answer("📛 Атыңызды жазыңыз:", reply_markup=kb)
-    
+    await message.answer("📛 Атыңызды жазыңыз:")
     # Отправляем кнопку "Назад" отдельным сообщением
     back_kb = InlineKeyboardMarkup()
     back_kb.add(InlineKeyboardButton("⬅️ Басты мәзірге", callback_data="back_to_main"))
     await message.answer("_Басты мәзірге оралу үшін:_", parse_mode="Markdown", reply_markup=back_kb)
-    
     await RequestForm.waiting_for_name.set()
 
 @dp.message_handler(state=RequestForm.waiting_for_name)
 async def get_name(message: types.Message, state: FSMContext):
-    """Получает имя пользователя и запрашивает телефон."""
     await state.update_data(name=message.text)
-    
     kb = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     kb.add(KeyboardButton("📲 Нөмірімді жіберу", request_contact=True))
-    
+    kb.add(KeyboardButton("✍️ Өзім жазамын"))
     await message.answer("📞 Телефон нөміріңізді жіберіңіз немесе түймені басыңыз:", reply_markup=kb)
-    
     back_kb = InlineKeyboardMarkup()
     back_kb.add(InlineKeyboardButton("⬅️ Алдыңғы қадам", callback_data="back_to_name_prev"))
     await message.answer("_Артқа қайту үшін:_", parse_mode="Markdown", reply_markup=back_kb)
-    
     await RequestForm.waiting_for_phone.set()
 
 @dp.message_handler(content_types=types.ContentType.CONTACT, state=RequestForm.waiting_for_phone)
