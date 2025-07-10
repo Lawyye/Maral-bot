@@ -141,17 +141,14 @@ async def get_question(message: types.Message, state: FSMContext):
     phone = user_data['phone']
     question = message.text
 
-    wa_phone = re.sub(r'[^\d]', '', phone)  # <-- исправление
-
+    # Формируем сообщение для админа
     admin_text = (
         f"📥 *Жаңа өтінім!*\n\n"
         f"👤 *Аты:* {name}\n"
         f"📞 *Телефон:* {phone}\n"
         f"❓ *Сұрақ:* {question}\n\n"
-        f"📱 [WhatsApp-қа өту](https://wa.me/{wa_phone})"
+        f"📱 [WhatsApp-қа өту](https://wa.me/{re.sub(r'[^\d]', '', phone)})"
     )
-
-    # ... остальной код ...
 
     # Отправляем админу
     await bot.send_message(
