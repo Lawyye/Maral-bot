@@ -84,20 +84,27 @@ async def send_welcome(message: types.Message, state: FSMContext):
     )
 
 # FSM диалог
-@dp.message_handler(lambda msg: msg.text == "📝 Өтінім қалдыру", state='*')
-async def start_request(message: types.Message, state: FSMContext):
+@dp.message_handler(lambda msg: msg.text == "📝 Өтінім қалдыру")
+async def start_request(message: types.Message, state: FSMContext = None):
     """Запускает процесс оформления заявки через FSM."""
     logging.info(f"🟡 ЗАЯВКА НАЧАТА ПОЛЬЗОВАТЕЛЕМ {message.from_user.id}")
     
-    # Принудительно сбрасываем состояние
-    await state.finish()
+    # Безопасная работа с состоянием
+    if state is not None:
+        await state.finish()
     
     await message.answer("📛 Атыңызды жазыңыз:")
     # Отправляем кнопку "Назад" отдельным сообщением
     back_kb = InlineKeyboardMarkup()
     back_kb.add(InlineKeyboardButton("⬅️ Басты мәзірге", callback_data="back_to_main"))
     await message.answer("_Басты мәзірге оралу үшін:_", parse_mode="Markdown", reply_markup=back_kb)
-    await RequestForm.waiting_for_name.set()
+    
+    # Безопасная установка состояния
+    if state is not None:
+        await RequestForm.waiting_for_name.set()
+    else:
+        current_state = dp.current_state(chat=message.chat.id, user=message.from_user.id)
+        await current_state.set_state(RequestForm.waiting_for_name)
 
 @dp.message_handler(state=RequestForm.waiting_for_name)
 async def get_name(message: types.Message, state: FSMContext):
@@ -286,13 +293,14 @@ async def back_to_phone_step(callback_query: types.CallbackQuery, state: FSMCont
     await callback_query.message.answer("_Артқа қайту үшін:_", parse_mode="Markdown", reply_markup=back_kb)
 
 # FAQ (первый уровень)
-@dp.message_handler(lambda msg: msg.text == "📄 Жиі қойылатын сұрақтар", state='*')
-async def show_faq_categories(message: types.Message, state: FSMContext):
+@dp.message_handler(lambda msg: msg.text == "📄 Жиі қойылатын сұрақтар")
+async def show_faq_categories(message: types.Message, state: FSMContext = None):
     """Показывает категории FAQ через inline-клавиатуру."""
     logging.info(f"🔵 FAQ ЗАПРОШЕН ПОЛЬЗОВАТЕЛЕМ {message.from_user.id}")
     
-    # Сбрасываем состояние
-    await state.finish()
+    # Безопасная работа с состоянием
+    if state is not None:
+        await state.finish()
     
     kb = InlineKeyboardMarkup(row_width=2)
     kb.add(
@@ -435,13 +443,18 @@ async def reset_bot(message: types.Message, state: FSMContext):
     )
 
 # ВАЖНО: Fallback обработчик для всех сообщений вне состояний
-@dp.message_handler(state='*')
-async def fallback_handler(message: types.Message, state: FSMContext):
+@dp.message_handler()
+async def fallback_handler(message: types.Message, state: FSMContext = None):
     """Обрабатывает все сообщения, которые не попали в другие хендлеры."""
     logging.info(f"🔴 FALLBACK: {message.text} от {message.from_user.id}")
     
-    # Получаем текущее состояние
-    current_state = await state.get_state()
+    # Безопасная проверка состояния
+    current_state = None
+    if state is not None:
+        try:
+            current_state = await state.get_state()
+        except Exception:
+            current_state = None
     
     if current_state:
         # Если есть активное состояние, говорим об этом
@@ -459,8 +472,8 @@ async def fallback_handler(message: types.Message, state: FSMContext):
         )
 
 # Обработчик неизвестных callback-запросов
-@dp.callback_query_handler(lambda c: True, state='*')
-async def handle_unknown_callback(callback_query: types.CallbackQuery, state: FSMContext):
+@dp.callback_query_handler(lambda c: True)
+async def handle_unknown_callback(callback_query: types.CallbackQuery, state: FSMContext = None):
     """Обработчик для неизвестных callback-кнопок."""
     logging.info(f"🔴 UNKNOWN CALLBACK: {callback_query.data}")
     await callback_query.answer("Белгісіз команда. Қайта көріңіз.", show_alert=True)
