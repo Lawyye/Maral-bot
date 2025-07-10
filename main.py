@@ -138,8 +138,16 @@ async def get_question(message: types.Message, state: FSMContext):
 # Обработчики inline-кнопок назад для FSM (мастер-стиль)
 @dp.callback_query_handler(lambda c: c.data == "back_to_main")
 async def back_to_main_menu(callback_query: types.CallbackQuery, state: FSMContext):
-    """Возврат в главное меню из любого состояния FSM."""
     await state.finish()
+    # Удаляем inline-клавиатуру у предыдущего сообщения
+    try:
+        await callback_query.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+    # Проверяем, не в главном ли меню уже пользователь
+    if callback_query.message.reply_markup is None:
+        await callback_query.answer("Сіз басты мәзірдесіз.")
+        return
     await callback_query.message.answer(
         "Сіз басты мәзірге оралдыңыз.",
         reply_markup=main_kb
