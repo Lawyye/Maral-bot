@@ -35,7 +35,6 @@ WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
 
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TOKEN)
-Bot.set_current(bot)  # ИСПРАВЛЕНИЕ ОШИБКИ КОНТЕКСТА
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
