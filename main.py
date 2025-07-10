@@ -97,7 +97,7 @@ async def get_name(message: types.Message, state: FSMContext):
 
 @dp.message_handler(content_types=types.ContentType.CONTACT, state=RequestForm.waiting_for_phone)
 async def get_phone_contact(message: types.Message, state: FSMContext):
-    """Получает телефон через контакт и запрашивает вопрос."""
+    logging.info(f"CONTACT HANDLER TRIGGERED: {message.contact}")
     await state.update_data(phone=message.contact.phone_number)
     back_kb = InlineKeyboardMarkup()
     back_kb.add(InlineKeyboardButton("⬅️ Назад", callback_data="back_to_phone_prev"))
@@ -107,7 +107,7 @@ async def get_phone_contact(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=RequestForm.waiting_for_phone)
 async def get_phone_text(message: types.Message, state: FSMContext):
-    """Получает телефон, введённый текстом, и запрашивает вопрос."""
+    logging.info(f"TEXT PHONE HANDLER TRIGGERED: {message.text}")
     await state.update_data(phone=message.text)
     back_kb = InlineKeyboardMarkup()
     back_kb.add(InlineKeyboardButton("⬅️ Назад", callback_data="back_to_phone_prev"))
