@@ -6,6 +6,13 @@ from aiogram.types import (
     ReplyKeyboardMarkup, KeyboardButton,
     InlineKeyboardMarkup, InlineKeyboardButton
 )
+# 🌐 Вебхук настройки
+WEBHOOK_HOST = os.getenv("WEBHOOK_HOST", "https://maral-bot.onrender.com")
+WEBHOOK_PATH = "/webhook"
+WEBAPP_HOST = "0.0.0.0"
+WEBAPP_PORT = int(os.getenv("PORT", 8000))
+WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
+
 from aiogram.utils import executor
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
@@ -378,7 +385,28 @@ async def global_error_handler(update, exception):
     return True
 
 
+# 🛠️ Указываем адрес вебхука
+WEBHOOK_HOST = os.getenv("WEBHOOK_HOST", "https://maral-bot.onrender.com")
+WEBHOOK_PATH = "/webhook"
+WEBAPP_HOST = "0.0.0.0"
+WEBAPP_PORT = int(os.getenv("PORT", 8000))
+
+WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
+
+# 📡 Запуск вебхука
+async def on_startup(dp):
+    await bot.set_webhook(WEBHOOK_URL)
+    logging.info(f"✅ Webhook установлен по адресу: {WEBHOOK_URL}")
+
+async def on_shutdown(dp):
+    await bot.delete_webhook()
+    await dp.storage.close()
+    await dp.storage.wait_closed()
+    logging.info("🛑 Webhook снят и бот выключен")
+
 if __name__ == '__main__':
+    from aiogram.utils.executor import start_webhook
+
     start_webhook(
         dispatcher=dp,
         webhook_path=WEBHOOK_PATH,
