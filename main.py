@@ -1,7 +1,6 @@
 import logging
 import os
 import re
-import asyncio
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import (
     ReplyKeyboardMarkup, KeyboardButton,
@@ -12,7 +11,6 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from dotenv import load_dotenv
-from aiohttp import web
 
 load_dotenv()
 
@@ -141,13 +139,16 @@ async def get_question(message: types.Message, state: FSMContext):
     phone = user_data['phone']
     question = message.text
 
+    # Исправление: выносим re.sub в отдельную переменную
+    wa_phone = re.sub(r'[^\d]', '', phone)
+
     # Формируем сообщение для админа
     admin_text = (
         f"📥 *Жаңа өтінім!*\n\n"
         f"👤 *Аты:* {name}\n"
         f"📞 *Телефон:* {phone}\n"
         f"❓ *Сұрақ:* {question}\n\n"
-        f"📱 [WhatsApp-қа өту](https://wa.me/{re.sub(r'[^\d]', '', phone)})"
+        f"📱 [WhatsApp-қа өту](https://wa.me/{wa_phone})"
     )
 
     # Отправляем админу
@@ -386,28 +387,6 @@ async def global_error_handler(update, exception):
     logging.error(f"Exception in update {update}: {exception}")
     return True
 
-# Anti-sleep веб-сервер для Render
-async def web_handler(request):
-    """Обработчик для проверки работы бота через веб-сервер."""
-    return web.Response(text="Bot is running! ✅")
-
-async def web_server():
-    """Запускает aiohttp веб-сервер для предотвращения засыпания на Render."""
-    app = web.Application()
-    app.router.add_get('/', web_handler)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', int(os.environ.get('PORT', 8080)))
-    await site.start()
-    logging.info(f"Web server started on port {os.environ.get('PORT', 8080)}")
-
-async def main():
-    """Основная точка входа: запускает веб-сервер и polling бота."""
-    await asyncio.gather(
-        web_server(),
-        dp.start_polling(skip_updates=True)
-    )
-
 if __name__ == '__main__':
     logging.info("Starting bot...")
-    asyncio.run(main())
+    executor.start_polling(dp, skip_updates=True)
