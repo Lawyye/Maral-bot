@@ -57,7 +57,7 @@ main_kb.add(
 async def send_welcome(message: types.Message, state: FSMContext):
     """Обрабатывает команду /start и приветствует пользователя."""
     logging.info(f"🟢 START КОМАНДА ОТ ПОЛЬЗОВАТЕЛЯ {message.from_user.id}")
-    
+
     # Сбрасываем любое активное состояние
     await state.finish()
 
@@ -83,33 +83,29 @@ async def send_welcome(message: types.Message, state: FSMContext):
         reply_markup=main_kb
     )
 
-# FSM диалог
-@dp.message_handler(lambda msg: msg.text == "📝 Өтінім қалдыру")
-async def start_request(message: types.Message, state: FSMContext = None):
+# FSM диалог - ИСПРАВЛЕНО
+@dp.message_handler(lambda msg: msg.text == "📝 Өтінім қалдыру", state='*')
+async def start_request(message: types.Message, state: FSMContext):
     """Запускает процесс оформления заявки через FSM."""
     logging.info(f"🟡 ЗАЯВКА НАЧАТА ПОЛЬЗОВАТЕЛЕМ {message.from_user.id}")
-    
-    # Безопасная работа с состоянием
-    if state is not None:
-        await state.finish()
-    
+
+    # Сбрасываем любое активное состояние
+    await state.finish()
+
     await message.answer("📛 Атыңызды жазыңыз:")
+    
     # Отправляем кнопку "Назад" отдельным сообщением
     back_kb = InlineKeyboardMarkup()
     back_kb.add(InlineKeyboardButton("⬅️ Басты мәзірге", callback_data="back_to_main"))
     await message.answer("_Басты мәзірге оралу үшін:_", parse_mode="Markdown", reply_markup=back_kb)
-    
-    # Безопасная установка состояния
-    if state is not None:
-        await RequestForm.waiting_for_name.set()
-    else:
-        current_state = dp.current_state(chat=message.chat.id, user=message.from_user.id)
-        await current_state.set_state(RequestForm.waiting_for_name)
+
+    # Устанавливаем состояние
+    await RequestForm.waiting_for_name.set()
 
 @dp.message_handler(state=RequestForm.waiting_for_name)
 async def get_name(message: types.Message, state: FSMContext):
     logging.info(f"🟡 ИМЯ ПОЛУЧЕНО: {message.text}")
-    
+
     await state.update_data(name=message.text)
     kb = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     kb.add(KeyboardButton("📲 Нөмірімді жіберу", request_contact=True))
@@ -125,14 +121,14 @@ async def get_name(message: types.Message, state: FSMContext):
 async def manual_phone_entry(message: types.Message, state: FSMContext):
     """Обрабатывает выбор ручного ввода номера телефона."""
     logging.info(f"🟡 РУЧНОЙ ВВОД ТЕЛЕФОНА ВЫБРАН: пользователь {message.from_user.id}")
-    
+
     await message.answer(
         "📝 Телефон нөміріңізді жазыңыз:\n"
         "_Мысалы: +7 (777) 123-45-67_",
         parse_mode="Markdown",
         reply_markup=types.ReplyKeyboardRemove()
     )
-    
+
     back_kb = InlineKeyboardMarkup()
     back_kb.add(InlineKeyboardButton("⬅️ Алдыңғы қадам", callback_data="back_to_name_prev"))
     await message.answer("_Артқа қайту үшін:_", parse_mode="Markdown", reply_markup=back_kb)
@@ -157,7 +153,7 @@ async def get_phone_text(message: types.Message, state: FSMContext):
     # Проверяем, что это не кнопка "✍️ Өзім жазамын"
     if message.text == "✍️ Өзім жазамын":
         return  # Обработается специальным хендлером выше
-    
+
     logging.info(f"🟡 ТЕЛЕФОН ТЕКСТОМ: {message.text}")
     await state.update_data(phone=message.text)
 
@@ -173,7 +169,7 @@ async def get_phone_text(message: types.Message, state: FSMContext):
 async def get_question(message: types.Message, state: FSMContext):
     """Получает вопрос пользователя, отправляет админу и завершает FSM."""
     logging.info(f"🟡 ВОПРОС ПОЛУЧЕН ОТ {message.from_user.id}: {message.text}")
-    
+
     try:
         user_data = await state.get_data()
         name = user_data.get('name', 'Не указано')
@@ -292,16 +288,15 @@ async def back_to_phone_step(callback_query: types.CallbackQuery, state: FSMCont
     back_kb.add(InlineKeyboardButton("⬅️ Алдыңғы қадам", callback_data="back_to_name_prev"))
     await callback_query.message.answer("_Артқа қайту үшін:_", parse_mode="Markdown", reply_markup=back_kb)
 
-# FAQ (первый уровень)
-@dp.message_handler(lambda msg: msg.text == "📄 Жиі қойылатын сұрақтар")
-async def show_faq_categories(message: types.Message, state: FSMContext = None):
+# FAQ (первый уровень) - ИСПРАВЛЕНО
+@dp.message_handler(lambda msg: msg.text == "📄 Жиі қойылатын сұрақтар", state='*')
+async def show_faq_categories(message: types.Message, state: FSMContext):
     """Показывает категории FAQ через inline-клавиатуру."""
     logging.info(f"🔵 FAQ ЗАПРОШЕН ПОЛЬЗОВАТЕЛЕМ {message.from_user.id}")
-    
-    # Безопасная работа с состоянием
-    if state is not None:
-        await state.finish()
-    
+
+    # Сбрасываем любое активное состояние
+    await state.finish()
+
     kb = InlineKeyboardMarkup(row_width=2)
     kb.add(
         InlineKeyboardButton("📚 Пән бойынша", callback_data="faq_subjects"),
@@ -323,10 +318,10 @@ async def show_faq_categories(message: types.Message, state: FSMContext = None):
 async def show_faq_detail(callback_query: types.CallbackQuery, state: FSMContext):
     """Показывает подробности выбранной категории FAQ."""
     logging.info(f"🔵 FAQ CALLBACK: {callback_query.data}")
-    
+
     # Сбрасываем состояние на всякий случай
     await state.finish()
-    
+
     # Удаляем старую клавиатуру
     try:
         await callback_query.message.edit_reply_markup(reply_markup=None)
@@ -442,20 +437,15 @@ async def reset_bot(message: types.Message, state: FSMContext):
         reply_markup=main_kb
     )
 
-# ВАЖНО: Fallback обработчик для всех сообщений вне состояний
-@dp.message_handler()
-async def fallback_handler(message: types.Message, state: FSMContext = None):
+# ВАЖНО: Fallback обработчик для всех сообщений вне состояний - ИСПРАВЛЕНО
+@dp.message_handler(state='*')
+async def fallback_handler(message: types.Message, state: FSMContext):
     """Обрабатывает все сообщения, которые не попали в другие хендлеры."""
     logging.info(f"🔴 FALLBACK: {message.text} от {message.from_user.id}")
-    
-    # Безопасная проверка состояния
-    current_state = None
-    if state is not None:
-        try:
-            current_state = await state.get_state()
-        except Exception:
-            current_state = None
-    
+
+    # Проверяем текущее состояние
+    current_state = await state.get_state()
+
     if current_state:
         # Если есть активное состояние, говорим об этом
         await message.answer(
@@ -471,9 +461,9 @@ async def fallback_handler(message: types.Message, state: FSMContext = None):
             reply_markup=main_kb
         )
 
-# Обработчик неизвестных callback-запросов
-@dp.callback_query_handler(lambda c: True)
-async def handle_unknown_callback(callback_query: types.CallbackQuery, state: FSMContext = None):
+# Обработчик неизвестных callback-запросов - ИСПРАВЛЕНО
+@dp.callback_query_handler(lambda c: True, state='*')
+async def handle_unknown_callback(callback_query: types.CallbackQuery, state: FSMContext):
     """Обработчик для неизвестных callback-кнопок."""
     logging.info(f"🔴 UNKNOWN CALLBACK: {callback_query.data}")
     await callback_query.answer("Белгісіз команда. Қайта көріңіз.", show_alert=True)
@@ -483,7 +473,7 @@ async def handle_unknown_callback(callback_query: types.CallbackQuery, state: FS
 async def global_error_handler(update, exception):
     """Глобальный обработчик ошибок для логирования."""
     logging.error(f"❌ ГЛОБАЛЬНАЯ ОШИБКА в update {update}: {exception}")
-    
+
     # Пытаемся отправить сообщение об ошибке пользователю
     try:
         if update.message:
@@ -493,7 +483,7 @@ async def global_error_handler(update, exception):
             )
     except Exception:
         pass
-    
+
     return True
 
 # ========== ИСПРАВЛЕННЫЙ WEBHOOK ОБРАБОТЧИК ==========
@@ -503,11 +493,11 @@ async def webhook_handler(request):
         # Получаем тело запроса
         body = await request.text()
         logging.info(f"🔵 WEBHOOK ПОЛУЧЕН: {len(body)} символов")
-        
+
         if not body:
             logging.warning("⚠️ ПУСТОЕ ТЕЛО ЗАПРОСА")
             return web.Response(text="Empty body", status=400)
-        
+
         # Парсим JSON
         try:
             json_data = json.loads(body)
@@ -515,33 +505,33 @@ async def webhook_handler(request):
         except json.JSONDecodeError as e:
             logging.error(f"❌ ОШИБКА ПАРСИНГА JSON: {e}")
             return web.Response(text="Invalid JSON", status=400)
-        
+
         # Создаем объект Update
         try:
             update = types.Update(**json_data)
             logging.info(f"✅ UPDATE СОЗДАН: update_id={update.update_id}")
-            
+
             if update.message:
                 user = update.message.from_user
                 logging.info(f"📩 СООБЩЕНИЕ ОТ: @{user.username} (ID: {user.id})")
                 logging.info(f"📝 ТЕКСТ: {update.message.text}")
             elif update.callback_query:
                 logging.info(f"🔘 CALLBACK: {update.callback_query.data}")
-                
+
         except Exception as e:
             logging.error(f"❌ ОШИБКА СОЗДАНИЯ UPDATE: {e}")
             return web.Response(text="Invalid update", status=400)
-        
+
         # Обрабатываем через диспетчер
         try:
             await dp.process_update(update)
             logging.info(f"✅ UPDATE ОБРАБОТАН УСПЕШНО")
             return web.Response(text="OK")
-            
+
         except Exception as e:
             logging.error(f"❌ ОШИБКА ОБРАБОТКИ UPDATE: {e}")
             return web.Response(text="Processing error", status=500)
-            
+
     except Exception as e:
         logging.error(f"❌ КРИТИЧЕСКАЯ ОШИБКА В WEBHOOK: {e}")
         return web.Response(text="Internal server error", status=500)
@@ -553,11 +543,11 @@ async def on_startup(app):
         # Устанавливаем webhook
         await bot.set_webhook(WEBHOOK_URL)
         logging.info(f"🚀 WEBHOOK УСТАНОВЛЕН: {WEBHOOK_URL}")
-        
+
         # Проверяем webhook
         webhook_info = await bot.get_webhook_info()
         logging.info(f"📋 WEBHOOK INFO: {webhook_info}")
-        
+
     except Exception as e:
         logging.error(f"❌ ОШИБКА УСТАНОВКИ WEBHOOK: {e}")
 
@@ -576,11 +566,11 @@ if __name__ == '__main__':
     # Создаем веб-приложение
     app = web.Application()
     app.router.add_post(WEBHOOK_PATH, webhook_handler)
-    
+
     # Добавляем startup/shutdown handlers
     app.on_startup.append(on_startup)
     app.on_shutdown.append(on_shutdown)
-    
+
     # Запускаем сервер
     logging.info(f"🚀 ЗАПУСК СЕРВЕРА НА {WEBAPP_HOST}:{WEBAPP_PORT}")
     web.run_app(app, host=WEBAPP_HOST, port=WEBAPP_PORT)
