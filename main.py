@@ -84,7 +84,7 @@ async def send_welcome(message: types.Message, state: FSMContext):
     )
 
 # FSM диалог - ИСПРАВЛЕНО
-@dp.message_handler(lambda msg: msg.text == "📝 Өтінім қалдыру", state='*')
+@dp.message_handler(Text(equals="📝 Өтінім қалдыру"), state='*')
 async def start_request(message: types.Message, state: FSMContext):
     """Запускает процесс оформления заявки через FSM."""
     logging.info(f"🟡 ЗАЯВКА НАЧАТА ПОЛЬЗОВАТЕЛЕМ {message.from_user.id}")
@@ -117,7 +117,7 @@ async def get_name(message: types.Message, state: FSMContext):
     await RequestForm.waiting_for_phone.set()
 
 # НОВЫЙ обработчик для кнопки "✍️ Өзім жазамын"
-@dp.message_handler(lambda msg: msg.text == "✍️ Өзім жазамын", state=RequestForm.waiting_for_phone)
+@dp.message_handler(Text(equals="✍️ Өзім жазамын"), state=RequestForm.waiting_for_phone)
 async def manual_phone_entry(message: types.Message, state: FSMContext):
     """Обрабатывает выбор ручного ввода номера телефона."""
     logging.info(f"🟡 РУЧНОЙ ВВОД ТЕЛЕФОНА ВЫБРАН: пользователь {message.from_user.id}")
@@ -225,7 +225,7 @@ async def get_question(message: types.Message, state: FSMContext):
         await state.finish()
 
 # Обработчики inline-кнопок назад для FSM
-@dp.callback_query_handler(lambda c: c.data == "back_to_main", state='*')
+@dp.callback_query_handler(Text(equals="back_to_main"), state='*')
 async def back_to_main_menu(callback_query: types.CallbackQuery, state: FSMContext):
     """Возврат в главное меню из любого состояния."""
     await state.finish()
@@ -244,7 +244,7 @@ async def back_to_main_menu(callback_query: types.CallbackQuery, state: FSMConte
         reply_markup=main_kb
     )
 
-@dp.callback_query_handler(lambda c: c.data == "back_to_name_prev", state=RequestForm.waiting_for_phone)
+@dp.callback_query_handler(Text(equals="back_to_name_prev"), state=RequestForm.waiting_for_phone)
 async def back_to_name_step(callback_query: types.CallbackQuery, state: FSMContext):
     """Возврат к шагу ввода имени из шага телефона."""
     # Удаляем inline-клавиатуру
@@ -264,7 +264,7 @@ async def back_to_name_step(callback_query: types.CallbackQuery, state: FSMConte
     back_kb.add(InlineKeyboardButton("⬅️ Басты мәзірге", callback_data="back_to_main"))
     await callback_query.message.answer("_Басты мәзірге оралу үшін:_", parse_mode="Markdown", reply_markup=back_kb)
 
-@dp.callback_query_handler(lambda c: c.data == "back_to_phone_prev", state=RequestForm.waiting_for_question)
+@dp.callback_query_handler(Text(equals="back_to_phone_prev"), state=RequestForm.waiting_for_question)
 async def back_to_phone_step(callback_query: types.CallbackQuery, state: FSMContext):
     """Возврат к шагу ввода телефона из шага вопроса."""
     # Удаляем inline-клавиатуру
@@ -289,7 +289,7 @@ async def back_to_phone_step(callback_query: types.CallbackQuery, state: FSMCont
     await callback_query.message.answer("_Артқа қайту үшін:_", parse_mode="Markdown", reply_markup=back_kb)
 
 # FAQ (первый уровень) - ИСПРАВЛЕНО
-@dp.message_handler(lambda msg: msg.text == "📄 Жиі қойылатын сұрақтар", state='*')
+@dp.message_handler(Text(equals="📄 Жиі қойылатын сұрақтар"), state='*')
 async def show_faq_categories(message: types.Message, state: FSMContext):
     """Показывает категории FAQ через inline-клавиатуру."""
     logging.info(f"🔵 FAQ ЗАПРОШЕН ПОЛЬЗОВАТЕЛЕМ {message.from_user.id}")
@@ -314,7 +314,7 @@ async def show_faq_categories(message: types.Message, state: FSMContext):
     back_kb.add(InlineKeyboardButton("⬅️ Басты мәзірге", callback_data="faq_back_to_main"))
     await message.answer("_Басты мәзірге оралу үшін:_", parse_mode="Markdown", reply_markup=back_kb)
 
-@dp.callback_query_handler(lambda c: c.data.startswith("faq_"), state='*')
+@dp.callback_query_handler(lambda c: c.data and c.data.startswith("faq_"), state='*')
 async def show_faq_detail(callback_query: types.CallbackQuery, state: FSMContext):
     """Показывает подробности выбранной категории FAQ."""
     logging.info(f"🔵 FAQ CALLBACK: {callback_query.data}")
