@@ -136,16 +136,16 @@ async def get_question(message: types.Message, state: FSMContext):
     await state.finish()
 
 # Обработчики inline-кнопок назад для FSM (мастер-стиль)
-@dp.callback_query_handler(lambda c: c.data == "back_to_main", state=RequestForm.waiting_for_name)
+@dp.callback_query_handler(lambda c: c.data == "back_to_main")
 async def back_to_main_menu(callback_query: types.CallbackQuery, state: FSMContext):
-    """Возврат в главное меню из первого шага FSM."""
+    """Возврат в главное меню из любого состояния FSM."""
     await state.finish()
     await callback_query.message.answer(
         "Сіз басты мәзірге оралдыңыз.",
         reply_markup=main_kb
     )
 
-@dp.callback_query_handler(lambda c: c.data == "back_to_name_prev", state=RequestForm.waiting_for_phone)
+@dp.callback_query_handler(lambda c: c.data == "back_to_name_prev")
 async def back_to_name_step(callback_query: types.CallbackQuery, state: FSMContext):
     """Возврат к шагу ввода имени из шага телефона."""
     await RequestForm.waiting_for_name.set()
@@ -157,7 +157,7 @@ async def back_to_name_step(callback_query: types.CallbackQuery, state: FSMConte
     await callback_query.message.answer("📛 Атыңызды жазыңыз:", reply_markup=kb)
     await callback_query.message.answer("Кері қайту үшін төмендегі батырманы басыңыз:", reply_markup=back_kb)
 
-@dp.callback_query_handler(lambda c: c.data == "back_to_phone_prev", state=RequestForm.waiting_for_question)
+@dp.callback_query_handler(lambda c: c.data == "back_to_phone_prev")
 async def back_to_phone_step(callback_query: types.CallbackQuery, state: FSMContext):
     """Возврат к шагу ввода телефона из шага вопроса."""
     await RequestForm.waiting_for_phone.set()
@@ -192,6 +192,23 @@ async def show_faq_detail(callback_query: types.CallbackQuery):
     if callback_query.data == "faq_back_to_main":
         await callback_query.message.answer("Сіз басты мәзірге оралдыңыз.", reply_markup=main_kb)
         return
+    elif callback_query.data == "faq_back_to_categories":
+        # Обработка возврата к категориям FAQ
+        kb = InlineKeyboardMarkup(row_width=2)
+        kb.add(
+            InlineKeyboardButton("📚 Пән бойынша", callback_data="faq_subjects"),
+            InlineKeyboardButton("📝 Бағалау / Сабақ", callback_data="faq_assessment"),
+            InlineKeyboardButton("📎 Басқару / Мақала", callback_data="faq_docs"),
+            InlineKeyboardButton("💬 Психология / Курс", callback_data="faq_psy"),
+            InlineKeyboardButton("🧾 Анықтама / Ашық сабақ", callback_data="faq_cert"),
+            InlineKeyboardButton("🎯 Сайыс / Авторлық", callback_data="faq_other")
+        )
+        back_kb = InlineKeyboardMarkup()
+        back_kb.add(InlineKeyboardButton("⬅️ Назад", callback_data="faq_back_to_main"))
+        await callback_query.message.answer("🤔 Қай бөлім бойынша сұрағыңыз бар?", reply_markup=kb)
+        await callback_query.message.answer("Кері қайту үшін төмендегі батырманы басыңыз:", reply_markup=back_kb)
+        return
+    
     data = {
         "faq_subjects": "📚 *Пән бойынша сұрақтар:*\n- Математика\n- Қазақ тілі\n- Жаратылыстану\n- Дүниетану\n- Әліппе",
         "faq_assessment": "📝 *Бағалау мен сабақ жоспары:*\n- Сабақ құрылымы\n- Бағалау түрлері\n- Кеңейтілген дағдылар",
@@ -205,22 +222,11 @@ async def show_faq_detail(callback_query: types.CallbackQuery):
     back_kb.add(InlineKeyboardButton("⬅️ Назад", callback_data="faq_back_to_categories"))
     await callback_query.message.answer(text, parse_mode="Markdown", reply_markup=back_kb)
 
-@dp.callback_query_handler(lambda c: c.data == "faq_back_to_categories")
-async def back_to_faq_categories(callback_query: types.CallbackQuery):
-    """Возвращает пользователя к выбору категорий FAQ."""
-    kb = InlineKeyboardMarkup(row_width=2)
-    kb.add(
-        InlineKeyboardButton("📚 Пән бойынша", callback_data="faq_subjects"),
-        InlineKeyboardButton("📝 Бағалау / Сабақ", callback_data="faq_assessment"),
-        InlineKeyboardButton("📎 Басқару / Мақала", callback_data="faq_docs"),
-        InlineKeyboardButton("💬 Психология / Курс", callback_data="faq_psy"),
-        InlineKeyboardButton("🧾 Анықтама / Ашық сабақ", callback_data="faq_cert"),
-        InlineKeyboardButton("🎯 Сайыс / Авторлық", callback_data="faq_other")
-    )
-    back_kb = InlineKeyboardMarkup()
-    back_kb.add(InlineKeyboardButton("⬅️ Назад", callback_data="faq_back_to_main"))
-    await callback_query.message.answer("🤔 Қай бөлім бойынша сұрағыңыз бар?", reply_markup=kb)
-    await callback_query.message.answer("Кері қайту үшін төмендегі батырманы басыңыз:", reply_markup=back_kb)
+# Универсальный обработчик для всех остальных callback-кнопок
+@dp.callback_query_handler(lambda c: True)
+async def handle_unknown_callback(callback_query: types.CallbackQuery):
+    """Обработчик для неизвестных callback-кнопок."""
+    await callback_query.answer("Кнопка не работает. Попробуйте еще раз.")
 
 # Глобальный обработчик ошибок
 @dp.errors_handler()
