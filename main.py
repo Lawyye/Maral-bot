@@ -525,6 +525,7 @@ async def webhook_handler(request):
 
         # Обрабатываем через диспетчер
         try:
+            Dispatcher.set_current(dp)
             await dp.process_update(update)
             logging.info(f"✅ UPDATE ОБРАБОТАН УСПЕШНО")
             return web.Response(text="OK")
