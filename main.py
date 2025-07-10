@@ -104,6 +104,8 @@ async def get_name(message: types.Message, state: FSMContext):
 @dp.message_handler(lambda msg: msg.text == "✍️ Өзім жазамын", state=RequestForm.waiting_for_phone)
 async def manual_phone_entry(message: types.Message, state: FSMContext):
     """Обрабатывает выбор ручного ввода номера телефона."""
+    logging.info(f"РУЧНОЙ ВВОД ТЕЛЕФОНА ВЫБРАН: пользователь {message.from_user.id}")
+    
     await message.answer(
         "📝 Телефон нөміріңізді жазыңыз:\n"
         "_Мысалы: +7 (777) 123-45-67_",
@@ -152,10 +154,14 @@ async def get_phone_text(message: types.Message, state: FSMContext):
 @dp.message_handler(state=RequestForm.waiting_for_question)
 async def get_question(message: types.Message, state: FSMContext):
     """Получает вопрос пользователя, отправляет админу и завершает FSM."""
+    logging.info(f"ПОЛУЧЕН ВОПРОС ОТ ПОЛЬЗОВАТЕЛЯ {message.from_user.id}: {message.text}")
+    
     user_data = await state.get_data()
     name = user_data['name']
     phone = user_data['phone']
     question = message.text
+
+    logging.info(f"ДАННЫЕ ПОЛЬЗОВАТЕЛЯ: имя={name}, телефон={phone}")
 
     # Исправление: выносим re.sub в отдельную переменную
     wa_phone = re.sub(r'[^\d]', '', phone)
@@ -169,13 +175,17 @@ async def get_question(message: types.Message, state: FSMContext):
         f"📱 [WhatsApp-қа өту](https://wa.me/{wa_phone})"
     )
 
-    # Отправляем админу
-    await bot.send_message(
-        chat_id=ADMIN_CHAT_ID, 
-        text=admin_text, 
-        parse_mode="Markdown",
-        disable_web_page_preview=True
-    )
+    try:
+        # Отправляем админу
+        await bot.send_message(
+            chat_id=ADMIN_CHAT_ID, 
+            text=admin_text, 
+            parse_mode="Markdown",
+            disable_web_page_preview=True
+        )
+        logging.info(f"СООБЩЕНИЕ ОТПРАВЛЕНО АДМИНУ {ADMIN_CHAT_ID}")
+    except Exception as e:
+        logging.error(f"ОШИБКА ОТПРАВКИ АДМИНУ: {e}")
 
     # Подтверждаем пользователю
     await message.answer(
@@ -186,6 +196,8 @@ async def get_question(message: types.Message, state: FSMContext):
         parse_mode="Markdown",
         reply_markup=main_kb
     )
+
+    logging.info(f"ЗАЯВКА ОБРАБОТАНА УСПЕШНО ДЛЯ ПОЛЬЗОВАТЕЛЯ {message.from_user.id}")
 
     # Завершаем FSM
     await state.finish()
