@@ -1,3 +1,4 @@
+
 import logging
 import os
 import re
@@ -76,7 +77,10 @@ async def start_request(message: types.Message):
     kb = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     kb.add(KeyboardButton("📲 Нөмірімді жіберу", request_contact=True))
     kb.add(KeyboardButton("✍️ Өзім жазамын"))
+    back_kb = InlineKeyboardMarkup()
+    back_kb.add(InlineKeyboardButton("⬅️ Назад", callback_data="back_to_main"))
     await message.answer("📛 Атыңызды жазыңыз:", reply_markup=kb)
+    await message.answer("Кері қайту үшін төмендегі батырманы басыңыз:", reply_markup=back_kb)
     await RequestForm.waiting_for_name.set()
 
 @dp.message_handler(state=RequestForm.waiting_for_name)
@@ -85,21 +89,30 @@ async def get_name(message: types.Message, state: FSMContext):
     await state.update_data(name=message.text)
     kb = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     kb.add(KeyboardButton("📲 Нөмірімді жіберу", request_contact=True))
+    back_kb = InlineKeyboardMarkup()
+    back_kb.add(InlineKeyboardButton("⬅️ Назад", callback_data="back_to_name"))
     await message.answer("📞 Телефон нөміріңізді жіберіңіз немесе түймені басыңыз:", reply_markup=kb)
+    await message.answer("Кері қайту үшін төмендегі батырманы басыңыз:", reply_markup=back_kb)
     await RequestForm.waiting_for_phone.set()
 
 @dp.message_handler(content_types=types.ContentType.CONTACT, state=RequestForm.waiting_for_phone)
 async def get_phone_contact(message: types.Message, state: FSMContext):
     """Получает телефон через контакт и запрашивает вопрос."""
     await state.update_data(phone=message.contact.phone_number)
+    back_kb = InlineKeyboardMarkup()
+    back_kb.add(InlineKeyboardButton("⬅️ Назад", callback_data="back_to_phone"))
     await message.answer("📝 Сұрағыңызды толық сипаттап жазыңыз:")
+    await message.answer("Кері қайту үшін төмендегі батырманы басыңыз:", reply_markup=back_kb)
     await RequestForm.waiting_for_question.set()
 
 @dp.message_handler(state=RequestForm.waiting_for_phone)
 async def get_phone_text(message: types.Message, state: FSMContext):
     """Получает телефон, введённый текстом, и запрашивает вопрос."""
     await state.update_data(phone=message.text)
+    back_kb = InlineKeyboardMarkup()
+    back_kb.add(InlineKeyboardButton("⬅️ Назад", callback_data="back_to_phone"))
     await message.answer("📝 Сұрағыңызды толық сипаттап жазыңыз:")
+    await message.answer("Кері қайту үшін төмендегі батырманы басыңыз:", reply_markup=back_kb)
     await RequestForm.waiting_for_question.set()
 
 @dp.message_handler(state=RequestForm.waiting_for_question)
@@ -121,6 +134,39 @@ async def get_question(message: types.Message, state: FSMContext):
     await bot.send_message(chat_id=ADMIN_CHAT_ID, text=text, parse_mode="Markdown")
     await message.answer("✅ Рақмет! Сұранысыңыз жіберілді.")
     await state.finish()
+
+# Обработчики inline-кнопок назад для FSM
+@dp.callback_query_handler(lambda c: c.data == "back_to_main")
+async def back_to_main_menu(callback_query: types.CallbackQuery, state: FSMContext):
+    """Возврат в главное меню и сброс состояния FSM."""
+    await state.finish()
+    await callback_query.message.answer(
+        "Сіз басты мәзірге оралдыңыз.",
+        reply_markup=main_kb
+    )
+
+@dp.callback_query_handler(lambda c: c.data == "back_to_name", state=RequestForm.waiting_for_phone)
+async def back_to_name_step(callback_query: types.CallbackQuery, state: FSMContext):
+    """Возврат к шагу ввода имени."""
+    await RequestForm.waiting_for_name.set()
+    kb = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    kb.add(KeyboardButton("📲 Нөмірімді жіберу", request_contact=True))
+    kb.add(KeyboardButton("✍️ Өзім жазамын"))
+    back_kb = InlineKeyboardMarkup()
+    back_kb.add(InlineKeyboardButton("⬅️ Назад", callback_data="back_to_main"))
+    await callback_query.message.answer("📛 Атыңызды жазыңыз:", reply_markup=kb)
+    await callback_query.message.answer("Кері қайту үшін төмендегі батырманы басыңыз:", reply_markup=back_kb)
+
+@dp.callback_query_handler(lambda c: c.data == "back_to_phone", state=RequestForm.waiting_for_question)
+async def back_to_phone_step(callback_query: types.CallbackQuery, state: FSMContext):
+    """Возврат к шагу ввода телефона."""
+    await RequestForm.waiting_for_phone.set()
+    kb = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    kb.add(KeyboardButton("📲 Нөмірімді жіберу", request_contact=True))
+    back_kb = InlineKeyboardMarkup()
+    back_kb.add(InlineKeyboardButton("⬅️ Назад", callback_data="back_to_name"))
+    await callback_query.message.answer("📞 Телефон нөміріңізді жіберіңіз немесе түймені басыңыз:", reply_markup=kb)
+    await callback_query.message.answer("Кері қайту үшін төмендегі батырманы басыңыз:", reply_markup=back_kb)
 
 # FAQ (первый уровень)
 @dp.message_handler(lambda msg: msg.text == "📄 Жиі қойылатын сұрақтар")
@@ -149,7 +195,23 @@ async def show_faq_detail(callback_query: types.CallbackQuery):
         "faq_other": "🎯 *Сайыс / Авторлық бағдарлама:*\n- Педагогикалық идеялар сайысы\n- Авторлық бағдарлама\n- Аттестация сұрақтары"
     }
     text = data.get(callback_query.data, "Қате кетті...")
-    await callback_query.message.answer(text, parse_mode="Markdown")
+    back_kb = InlineKeyboardMarkup()
+    back_kb.add(InlineKeyboardButton("⬅️ Назад", callback_data="back_to_faq"))
+    await callback_query.message.answer(text, parse_mode="Markdown", reply_markup=back_kb)
+
+@dp.callback_query_handler(lambda c: c.data == "back_to_faq")
+async def back_to_faq_categories(callback_query: types.CallbackQuery):
+    """Возвращает пользователя к выбору категорий FAQ."""
+    kb = InlineKeyboardMarkup(row_width=2)
+    kb.add(
+        InlineKeyboardButton("📚 Пән бойынша", callback_data="faq_subjects"),
+        InlineKeyboardButton("📝 Бағалау / Сабақ", callback_data="faq_assessment"),
+        InlineKeyboardButton("📎 Басқару / Мақала", callback_data="faq_docs"),
+        InlineKeyboardButton("💬 Психология / Курс", callback_data="faq_psy"),
+        InlineKeyboardButton("🧾 Анықтама / Ашық сабақ", callback_data="faq_cert"),
+        InlineKeyboardButton("🎯 Сайыс / Авторлық", callback_data="faq_other")
+    )
+    await callback_query.message.answer("🤔 Қай бөлім бойынша сұрағыңыз бар?", reply_markup=kb)
 
 # Глобальный обработчик ошибок
 @dp.errors_handler()
