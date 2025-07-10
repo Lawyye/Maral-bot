@@ -100,6 +100,23 @@ async def get_name(message: types.Message, state: FSMContext):
     await message.answer("_Артқа қайту үшін:_", parse_mode="Markdown", reply_markup=back_kb)
     await RequestForm.waiting_for_phone.set()
 
+# НОВЫЙ обработчик для кнопки "✍️ Өзім жазамын"
+@dp.message_handler(lambda msg: msg.text == "✍️ Өзім жазамын", state=RequestForm.waiting_for_phone)
+async def manual_phone_entry(message: types.Message, state: FSMContext):
+    """Обрабатывает выбор ручного ввода номера телефона."""
+    await message.answer(
+        "📝 Телефон нөміріңізді жазыңыз:\n"
+        "_Мысалы: +7 (777) 123-45-67_",
+        parse_mode="Markdown",
+        reply_markup=types.ReplyKeyboardRemove()
+    )
+    
+    back_kb = InlineKeyboardMarkup()
+    back_kb.add(InlineKeyboardButton("⬅️ Алдыңғы қадам", callback_data="back_to_name_prev"))
+    await message.answer("_Артқа қайту үшін:_", parse_mode="Markdown", reply_markup=back_kb)
+    
+    # Остаемся в том же состоянии waiting_for_phone
+
 @dp.message_handler(content_types=types.ContentType.CONTACT, state=RequestForm.waiting_for_phone)
 async def get_phone_contact(message: types.Message, state: FSMContext):
     """Обрабатывает отправленный контакт."""
@@ -117,6 +134,10 @@ async def get_phone_contact(message: types.Message, state: FSMContext):
 @dp.message_handler(state=RequestForm.waiting_for_phone)
 async def get_phone_text(message: types.Message, state: FSMContext):
     """Обрабатывает введенный вручную номер телефона."""
+    # Проверяем, что это не кнопка "✍️ Өзім жазамын"
+    if message.text == "✍️ Өзім жазамын":
+        return  # Обработается специальным хендлером выше
+    
     logging.info(f"TEXT PHONE HANDLER TRIGGERED: {message.text}")
     await state.update_data(phone=message.text)
 
