@@ -6,13 +6,6 @@ from aiogram.types import (
     ReplyKeyboardMarkup, KeyboardButton,
     InlineKeyboardMarkup, InlineKeyboardButton
 )
-# 🌐 Вебхук настройки
-WEBHOOK_HOST = os.getenv("WEBHOOK_HOST", "https://maral-bot.onrender.com")
-WEBHOOK_PATH = "/webhook"
-WEBAPP_HOST = "0.0.0.0"
-WEBAPP_PORT = int(os.getenv("PORT", 8000))
-WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
-
 from aiogram.utils import executor
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
@@ -28,6 +21,13 @@ if not TOKEN:
     raise ValueError("BOT_TOKEN is not set in environment variables")
 if not ADMIN_CHAT_ID:
     raise ValueError("ADMIN_CHAT_ID is not set in environment variables")
+
+# 🌐 Вебхук настройки (ИСПРАВЛЕНО: убрал дублирование)
+WEBHOOK_HOST = os.getenv("WEBHOOK_HOST", "https://maral-bot.onrender.com")
+WEBHOOK_PATH = "/webhook"
+WEBAPP_HOST = "0.0.0.0"
+WEBAPP_PORT = int(os.getenv("PORT", 10000))  # ИСПРАВЛЕНО: 10000 вместо 8000
+WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
 
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TOKEN)
@@ -54,7 +54,7 @@ async def send_welcome(message: types.Message, state: FSMContext):
     """Обрабатывает команду /start и приветствует пользователя."""
     # Сбрасываем любое активное состояние
     await state.finish()
-    
+
     await message.answer(
         "🎓 *ӘДІСТЕМЕЛІК КӨМЕК БОТЫ*\n"
         "━━━━━━━━━━━━━━━━━━━━━\n"
@@ -105,13 +105,13 @@ async def get_phone_contact(message: types.Message, state: FSMContext):
     """Обрабатывает отправленный контакт."""
     logging.info(f"CONTACT HANDLER TRIGGERED: {message.contact}")
     await state.update_data(phone=message.contact.phone_number)
-    
+
     await message.answer("📝 Сұрағыңызды толық сипаттап жазыңыз:", reply_markup=types.ReplyKeyboardRemove())
-    
+
     back_kb = InlineKeyboardMarkup()
     back_kb.add(InlineKeyboardButton("⬅️ Алдыңғы қадам", callback_data="back_to_phone_prev"))
     await message.answer("_Артқа қайту үшін:_", parse_mode="Markdown", reply_markup=back_kb)
-    
+
     await RequestForm.waiting_for_question.set()
 
 @dp.message_handler(state=RequestForm.waiting_for_phone)
@@ -119,13 +119,13 @@ async def get_phone_text(message: types.Message, state: FSMContext):
     """Обрабатывает введенный вручную номер телефона."""
     logging.info(f"TEXT PHONE HANDLER TRIGGERED: {message.text}")
     await state.update_data(phone=message.text)
-    
+
     await message.answer("📝 Сұрағыңызды толық сипаттап жазыңыз:", reply_markup=types.ReplyKeyboardRemove())
-    
+
     back_kb = InlineKeyboardMarkup()
     back_kb.add(InlineKeyboardButton("⬅️ Алдыңғы қадам", callback_data="back_to_phone_prev"))
     await message.answer("_Артқа қайту үшін:_", parse_mode="Markdown", reply_markup=back_kb)
-    
+
     await RequestForm.waiting_for_question.set()
 
 @dp.message_handler(state=RequestForm.waiting_for_question)
@@ -155,7 +155,7 @@ async def get_question(message: types.Message, state: FSMContext):
         parse_mode="Markdown",
         disable_web_page_preview=True
     )
-    
+
     # Подтверждаем пользователю
     await message.answer(
         "✅ *Рақмет!*\n\n"
@@ -165,7 +165,7 @@ async def get_question(message: types.Message, state: FSMContext):
         parse_mode="Markdown",
         reply_markup=main_kb
     )
-    
+
     # Завершаем FSM
     await state.finish()
 
@@ -174,15 +174,15 @@ async def get_question(message: types.Message, state: FSMContext):
 async def back_to_main_menu(callback_query: types.CallbackQuery, state: FSMContext):
     """Возврат в главное меню из любого состояния."""
     await state.finish()
-    
+
     # Удаляем inline-клавиатуру
     try:
         await callback_query.message.edit_reply_markup(reply_markup=None)
     except Exception:
         pass
-    
+
     await callback_query.answer("Басты мәзірге оралдыңыз ✅")
-    
+
     # Отправляем сообщение с главным меню
     await callback_query.message.answer(
         "Басты мәзір:",
@@ -197,18 +197,18 @@ async def back_to_name_step(callback_query: types.CallbackQuery, state: FSMConte
         await callback_query.message.edit_reply_markup(reply_markup=None)
     except Exception:
         pass
-    
+
     await callback_query.answer("Алдыңғы қадамға оралдыңыз")
-    
+
     # Возвращаемся к вводу имени
     await RequestForm.waiting_for_name.set()
-    
+
     kb = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     kb.add(KeyboardButton("📲 Нөмірімді жіберу", request_contact=True))
     kb.add(KeyboardButton("✍️ Өзім жазамын"))
-    
+
     await callback_query.message.answer("📛 Атыңызды жазыңыз:", reply_markup=kb)
-    
+
     back_kb = InlineKeyboardMarkup()
     back_kb.add(InlineKeyboardButton("⬅️ Басты мәзірге", callback_data="back_to_main"))
     await callback_query.message.answer("_Басты мәзірге оралу үшін:_", parse_mode="Markdown", reply_markup=back_kb)
@@ -221,17 +221,17 @@ async def back_to_phone_step(callback_query: types.CallbackQuery, state: FSMCont
         await callback_query.message.edit_reply_markup(reply_markup=None)
     except Exception:
         pass
-    
+
     await callback_query.answer("Алдыңғы қадамға оралдыңыз")
-    
+
     # Возвращаемся к вводу телефона
     await RequestForm.waiting_for_phone.set()
-    
+
     kb = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     kb.add(KeyboardButton("📲 Нөмірімді жіберу", request_contact=True))
-    
+
     await callback_query.message.answer("📞 Телефон нөміріңізді жіберіңіз немесе түймені басыңыз:", reply_markup=kb)
-    
+
     back_kb = InlineKeyboardMarkup()
     back_kb.add(InlineKeyboardButton("⬅️ Алдыңғы қадам", callback_data="back_to_name_prev"))
     await callback_query.message.answer("_Артқа қайту үшін:_", parse_mode="Markdown", reply_markup=back_kb)
@@ -249,9 +249,9 @@ async def show_faq_categories(message: types.Message):
         InlineKeyboardButton("🧾 Анықтама / Ашық сабақ", callback_data="faq_cert"),
         InlineKeyboardButton("🎯 Сайыс / Авторлық", callback_data="faq_other")
     )
-    
+
     await message.answer("🤔 Қай бөлім бойынша сұрағыңыз бар?", reply_markup=kb)
-    
+
     # Кнопка "Назад" отдельным сообщением
     back_kb = InlineKeyboardMarkup()
     back_kb.add(InlineKeyboardButton("⬅️ Басты мәзірге", callback_data="faq_back_to_main"))
@@ -265,12 +265,12 @@ async def show_faq_detail(callback_query: types.CallbackQuery):
         await callback_query.message.edit_reply_markup(reply_markup=None)
     except Exception:
         pass
-    
+
     if callback_query.data == "faq_back_to_main":
         await callback_query.answer("Басты мәзірге оралдыңыз ✅")
         await callback_query.message.answer("Басты мәзір:", reply_markup=main_kb)
         return
-    
+
     elif callback_query.data == "faq_back_to_categories":
         await callback_query.answer("Категорияларға оралдыңыз")
         # Показываем категории снова
@@ -284,12 +284,12 @@ async def show_faq_detail(callback_query: types.CallbackQuery):
             InlineKeyboardButton("🎯 Сайыс / Авторлық", callback_data="faq_other")
         )
         await callback_query.message.answer("🤔 Қай бөлім бойынша сұрағыңыз бар?", reply_markup=kb)
-        
+
         back_kb = InlineKeyboardMarkup()
         back_kb.add(InlineKeyboardButton("⬅️ Басты мәзірге", callback_data="faq_back_to_main"))
         await callback_query.message.answer("_Басты мәзірге оралу үшін:_", parse_mode="Markdown", reply_markup=back_kb)
         return
-    
+
     # Данные для категорий
     faq_data = {
         "faq_subjects": (
@@ -343,11 +343,11 @@ async def show_faq_detail(callback_query: types.CallbackQuery):
             "• *Инновациялық әдістер* - енгізу тәжірибесі"
         )
     }
-    
+
     text = faq_data.get(callback_query.data, "Кешіріңіз, ақпарат табылмады.")
     await callback_query.answer("Ақпарат жүктелді ✅")
     await callback_query.message.answer(text, parse_mode="Markdown")
-    
+
     # Кнопка назад к категориям
     back_kb = InlineKeyboardMarkup()
     back_kb.add(InlineKeyboardButton("⬅️ Категорияларға", callback_data="faq_back_to_categories"))
@@ -371,6 +371,12 @@ async def reset_bot(message: types.Message, state: FSMContext):
         reply_markup=main_kb
     )
 
+# НОВОЕ: Обработчик для проверки работы webhook
+@dp.message_handler(commands=['ping'])
+async def ping_handler(message: types.Message):
+    """Проверка работы бота."""
+    await message.answer("🟢 Бот жұмыс істеп тұр!")
+
 # Обработчик неизвестных callback-запросов
 @dp.callback_query_handler(lambda c: True, state='*')
 async def handle_unknown_callback(callback_query: types.CallbackQuery):
@@ -384,21 +390,22 @@ async def global_error_handler(update, exception):
     logging.error(f"Exception in update {update}: {exception}")
     return True
 
-
-# 🛠️ Указываем адрес вебхука
-WEBHOOK_HOST = os.getenv("WEBHOOK_HOST", "https://maral-bot.onrender.com")
-WEBHOOK_PATH = "/webhook"
-WEBAPP_HOST = "0.0.0.0"
-WEBAPP_PORT = int(os.getenv("PORT", 8000))
-
-WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
-
 # 📡 Запуск вебхука
 async def on_startup(dp):
-    await bot.set_webhook(WEBHOOK_URL)
-    logging.info(f"✅ Webhook установлен по адресу: {WEBHOOK_URL}")
+    """Настройка webhook при запуске."""
+    # Устанавливаем webhook
+    webhook_info = await bot.get_webhook_info()
+    if webhook_info.url != WEBHOOK_URL:
+        await bot.set_webhook(WEBHOOK_URL)
+        logging.info(f"✅ Webhook установлен по адресу: {WEBHOOK_URL}")
+    else:
+        logging.info(f"✅ Webhook уже установлен: {WEBHOOK_URL}")
+    
+    # Логируем основную информацию
+    logging.info(f"🔗 Работаст на http://0.0.0.0:{WEBAPP_PORT}")
 
 async def on_shutdown(dp):
+    """Очистка при остановке."""
     await bot.delete_webhook()
     await dp.storage.close()
     await dp.storage.wait_closed()
