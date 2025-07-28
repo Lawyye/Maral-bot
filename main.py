@@ -4,6 +4,7 @@ import re
 import json
 import time
 import asyncio
+
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import (
     ReplyKeyboardMarkup, KeyboardButton,
@@ -13,6 +14,7 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.dispatcher.filters import Text
+
 from dotenv import load_dotenv
 from aiohttp import web
 
@@ -20,11 +22,32 @@ load_dotenv()
 
 TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "0"))
+WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
 
+# ─── страховка от пустых переменных ─────────────────────────
 if not TOKEN:
     raise ValueError("BOT_TOKEN is not set in environment variables")
-if not ADMIN_CHAT_ID:
+if ADMIN_CHAT_ID == 0:
     raise ValueError("ADMIN_CHAT_ID is not set in environment variables")
+# ────────────────────────────────────────────────────────────
+
+ALLOWED_CHATS = {ADMIN_CHAT_ID}
+
+# создаём объекты бота и диспетчера
+bot = Bot(token=TOKEN)
+dp = Dispatcher(bot, storage=MemoryStorage())
+
+# безопасная обёртка для отправки сообщений
+async def safe_send(chat_id: int, text: str, **kw):
+    if chat_id in ALLOWED_CHATS:
+        await bot.send_message(chat_id, text, **kw)
+
+# тихие логи (INFO включаешь локально: DEBUG=1 python main.py)
+DEBUG = os.getenv("DEBUG") == "1"
+logging.basicConfig(
+    level=logging.INFO if DEBUG else logging.WARNING,
+    format="%(asctime)s %(levelname)s: %(message)s"
+)
 
 # 🌐 Вебхук настройки
 WEBHOOK_HOST = os.getenv("WEBHOOK_HOST", "https://maral-bot.onrender.com")
