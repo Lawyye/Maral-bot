@@ -422,22 +422,35 @@ async def global_error_handler(update, exception):
     return True
 
 # ========== WEBHOOK HANDLER & PING ==========
+# ========== WEBHOOK HANDLER & PING ==========
 async def webhook_handler(request):
+    # 🔐 1. ПРОВЕРЯЕМ SECRET-TOKEN ОТ TELEGRAM
+    if request.headers.get("X-Telegram-Bot-Api-Secret-Token") != WEBHOOK_SECRET:
+        return web.Response(text="Forbidden", status=403)
+
+    # 2. Дальше идёт обычная обработка апдейта
     try:
         body = await request.text()
         logging.info(f"🔵 WEBHOOK ПОЛУЧЕН: {len(body)} символов")
+
         if not body:
             logging.warning("⚠️ ПУСТОЕ ТЕЛО ЗАПРОСА")
             return web.Response(text="Empty body", status=400)
+
+        # --- JSON парсинг ---
         try:
             json_data = json.loads(body)
-            logging.info(f"✅ JSON ПАРСИНГ УСПЕШЕН")
+            logging.info("✅ JSON ПАРСИНГ УСПЕШЕН")
         except json.JSONDecodeError as e:
             logging.error(f"❌ ОШИБКА ПАРСИНГА JSON: {e}")
             return web.Response(text="Invalid JSON", status=400)
+
+        # --- Создаём Update ---
         try:
             update = types.Update(**json_data)
-            logging.info(f"✅ UPDATE СОЗДАН: update_id={getattr(update, 'update_id', 'нет')}")
+            logging.info(
+                f"✅ UPDATE СОЗДАН: update_id={getattr(update, 'update_id', 'нет')}"
+            )
             if update.message:
                 user = update.message.from_user
                 logging.info(f"📩 СООБЩЕНИЕ ОТ: @{user.username} (ID: {user.id})")
@@ -447,17 +460,21 @@ async def webhook_handler(request):
         except Exception as e:
             logging.error(f"❌ ОШИБКА СОЗДАНИЯ UPDATE: {e}")
             return web.Response(text="Invalid update", status=400)
+
+        # --- Передаём диспетчеру ---
         try:
             Dispatcher.set_current(dp)
             await dp.process_update(update)
-            logging.info(f"✅ UPDATE ОБРАБОТАН УСПЕШНО")
+            logging.info("✅ UPDATE ОБРАБОТАН УСПЕШНО")
             return web.Response(text="OK")
         except Exception as e:
             logging.error(f"❌ ОШИБКА ОБРАБОТКИ UPDATE: {e}")
             return web.Response(text="Processing error", status=500)
+
     except Exception as e:
         logging.error(f"❌ КРИТИЧЕСКАЯ ОШИБКА В WEBHOOK: {e}")
         return web.Response(text="Internal server error", status=500)
+
 
 async def ping(request):
     return web.Response(text="pong")
