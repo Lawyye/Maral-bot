@@ -1,9 +1,9 @@
 import logging
 import os
-import re
-import json
-import time
 import asyncio
+import json
+import re
+import time
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import (
@@ -18,83 +18,73 @@ from aiogram.dispatcher.filters import Text
 from dotenv import load_dotenv
 from aiohttp import web
 
+# ──────────────────────────────────────────────────────────────
 load_dotenv()
 
-TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "0"))
+TOKEN          = os.getenv("BOT_TOKEN")
+ADMIN_CHAT_ID  = int(os.getenv("ADMIN_CHAT_ID", "0"))
 WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
 
-# ─── страховка от пустых переменных ─────────────────────────
 if not TOKEN:
-    raise ValueError("BOT_TOKEN is not set in environment variables")
+    raise ValueError("BOT_TOKEN not set")
 if ADMIN_CHAT_ID == 0:
-    raise ValueError("ADMIN_CHAT_ID is not set in environment variables")
-# ────────────────────────────────────────────────────────────
+    raise ValueError("ADMIN_CHAT_ID not set")
 
-ALLOWED_CHATS = {ADMIN_CHAT_ID}
-
-# создаём объекты бота и диспетчера
-bot = Bot(token=TOKEN)
-dp = Dispatcher(bot, storage=MemoryStorage())
-
-# безопасная обёртка для отправки сообщений
-async def safe_send(chat_id: int, text: str, **kw):
-    if chat_id in ALLOWED_CHATS:
-        await bot.send_message(chat_id, text, **kw)
-
-# тихие логи (INFO включаешь локально: DEBUG=1 python main.py)
 DEBUG = os.getenv("DEBUG") == "1"
 logging.basicConfig(
     level=logging.INFO if DEBUG else logging.WARNING,
-    format="%(asctime)s %(levelname)s: %(message)s"
+    format="%(asctime)s [%(levelname)s] %(message)s"
 )
 
-# 🌐 Вебхук настройки
 WEBHOOK_HOST = os.getenv("WEBHOOK_HOST", "https://maral-bot.onrender.com")
 WEBHOOK_PATH = "/webhook"
-WEBAPP_HOST = "0.0.0.0"
-WEBAPP_PORT = int(os.getenv("PORT", 10000))
-WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
+WEBAPP_HOST  = "0.0.0.0"
+WEBAPP_PORT  = int(os.getenv("PORT", 10000))
+WEBHOOK_URL  = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
 
-logging.basicConfig(level=logging.INFO)
+ALLOWED_CHATS = {ADMIN_CHAT_ID}
+
 bot = Bot(token=TOKEN)
-Bot.set_current(bot)
-storage = MemoryStorage()
-dp = Dispatcher(bot, storage=storage)
+dp  = Dispatcher(bot, storage=MemoryStorage())
 
-# ========================  ДОБАВЛЕННЫЕ ФУНКЦИИ ДЛЯ НАДЕЖНОСТИ WEBHOOK =========================
-async def set_webhook_with_retry(bot, url, attempts=5, delay=5):
+async def safe_send(chat_id: int, text: str, **kwargs):
+    """Отправляет сообщения только в разрешённые чаты."""
+    if chat_id in ALLOWED_CHATS:
+        await bot.send_message(chat_id, text, **kwargs)
+
+async def set_webhook_with_retry(bot: Bot, url: str,
+                                 attempts: int = 5, delay: int = 5):
+    """Ставит веб-хук, повторяя попытку при ошибке."""
     for i in range(attempts):
         try:
-            await bot.set_webhook(url)
-            logging.info(f"🚀 WEBHOOK УСТАНОВЛЕН: {url}")
+            await bot.set_webhook(url, secret_token=WEBHOOK_SECRET)
+            logging.info("🚀 WEBHOOK установлен: %s", url)
             return True
         except Exception as e:
-            logging.error(f"❌ ОШИБКА УСТАНОВКИ WEBHOOK (попытка {i+1}): {e}")
+            logging.error("❌ ошибка установки WEBHOOK (%s): %s", i + 1, e)
             await asyncio.sleep(delay)
-    logging.critical("❌ НЕ УДАЛОСЬ УСТАНОВИТЬ WEBHOOK ПОСЛЕ НЕСКОЛЬКИХ ПОПЫТОК!")
+    logging.critical("‼️ не удалось поставить WEBHOOK")
     return False
 
-async def webhook_monitor(bot, url, interval=60):
+async def webhook_monitor(bot: Bot, url: str, interval: int = 60):
+    """Следит, чтобы веб-хук не слетел; при необходимости восстанавливает."""
     while True:
         try:
             info = await bot.get_webhook_info()
-            if not info.url:
-                logging.warning("⚠️ WEBHOOK СБРОШЕН! СТАВИМ ЗАНОВО...")
-                await bot.set_webhook(url)
-                logging.info(f"🚀 WEBHOOK ПОВТОРНО УСТАНОВЛЕН: {url}")
+            if info.url != url:
+                logging.warning("⚠️ WEBHOOK сброшен, восстанавливаю…")
+                await bot.set_webhook(url, secret_token=WEBHOOK_SECRET)
+                logging.info("🚀 WEBHOOK восстановлен")
         except Exception as e:
-            logging.error(f"❌ ОШИБКА В МОНИТОРЕ WEBHOOK: {e}")
+            logging.error("❌ ошибка монитора WEBHOOK: %s", e)
         await asyncio.sleep(interval)
 
-# FSM форма
 class RequestForm(StatesGroup):
-    """Состояния для формы заявки пользователя."""
-    waiting_for_name = State()
-    waiting_for_phone = State()
+    """Состояния формы заявки пользователя."""
+    waiting_for_name    = State()
+    waiting_for_phone   = State()
     waiting_for_question = State()
 
-# Клавиатура
 main_kb = ReplyKeyboardMarkup(resize_keyboard=True)
 main_kb.add(
     KeyboardButton("📄 Жиі қойылатын сұрақтар"),
