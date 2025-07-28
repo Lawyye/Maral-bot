@@ -46,6 +46,7 @@ ALLOWED_CHATS = {ADMIN_CHAT_ID}
 
 bot = Bot(token=TOKEN)
 dp  = Dispatcher(bot, storage=MemoryStorage())
+Bot.set_current(bot)          # важно для хендлеров
 
 async def safe_send(chat_id: int, text: str, **kwargs):
     """Отправляет сообщения только в разрешённые чаты."""
